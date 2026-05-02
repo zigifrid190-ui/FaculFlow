@@ -5,4 +5,4 @@ builder = "nixpacks"
 python-version = "3.12"
 
 [deploy]
-startCommand = "bash start.sh"
+startCommand = "python manage.py migrate --noinput && python manage.py shell -c \"exec(open('seed.py').read())\" && python manage.py collectstatic --noinput && gunicorn faculflow_backend.wsgi --bind 0.0.0.0:$PORT"
