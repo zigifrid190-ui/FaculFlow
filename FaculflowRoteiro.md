@@ -85,14 +85,14 @@
 
 ---
 
-## Fase 5: Próximos Passos (Após o MVP)
+## Fase 5: Deploy e Distribuição — ✅ CONCLUÍDA
 
-- Deploy do backend (Railway / Render)
-- Build do app para Android (Expo EAS)
-- Adicionar chat entre usuários
-- Sistema de posts completo com imagens
-- Notificações push
-- Versão para iOS
+- [x] Repositório no GitHub (github.com/zigifrid190-ui/FaculFlow)
+- [x] Backend deployado no Railway com PostgreSQL
+- [x] URL pública: https://faculflow-production.up.railway.app
+- [x] Migrations e seed automáticos no startup
+- [x] APK gerado via Expo EAS Build (perfil preview)
+- [x] App instalado e testado no celular Android
 
 ---
 
