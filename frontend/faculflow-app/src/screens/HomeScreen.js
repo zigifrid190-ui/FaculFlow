@@ -8,10 +8,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
 import Button from '../components/Button';
+import CommentsModal from '../components/CommentsModal';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { postsAPI } from '../services/api';
+import Skeleton from '../components/Common/Skeleton';
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   
@@ -19,15 +21,65 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
+  // Pagination states
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   // Modal states
   const [isModalVisible, setModalVisible] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Comments modal states
+  const [selectedPostForComments, setSelectedPostForComments] = useState(null);
+  const [isCommentsModalVisible, setCommentsModalVisible] = useState(false);
+  
+  const renderSkeletons = () => (
+    <View style={styles.skeletonList}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <View style={styles.skeletonHeader}>
+            <Skeleton width={40} height={40} borderRadius={20} />
+            <View style={{ marginLeft: 12 }}>
+              <Skeleton width={120} height={14} borderRadius={4} />
+              <Skeleton width={80} height={10} borderRadius={4} style={{ marginTop: 6 }} />
+            </View>
+          </View>
+          <Skeleton width="100%" height={16} borderRadius={4} style={{ marginTop: 16 }} />
+          <Skeleton width="90%" height={16} borderRadius={4} style={{ marginTop: 8 }} />
+          <Skeleton width="60%" height={16} borderRadius={4} style={{ marginTop: 8 }} />
+        </View>
+      ))}
+    </View>
+  );
 
-  const fetchPosts = async (showAlert = false) => {
+  const fetchPosts = async (isRefresh = false, showAlert = false) => {
+    if (!isRefresh && !loading) {
+      setLoadingMore(true);
+    }
     try {
-      const { data } = await postsAPI.getAll();
-      setPosts(data);
+      const cursor = isRefresh ? '' : (nextCursor || '');
+      const { data } = await postsAPI.getAll(cursor);
+      
+      const newPosts = data.results || data; // Handle paginated vs non-paginated gracefully
+      
+      if (isRefresh) {
+        setPosts(newPosts);
+      } else {
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const filteredNew = newPosts.filter(p => !existingIds.has(p.id));
+          return [...prev, ...filteredNew];
+        });
+      }
+      
+      // Extract next cursor string from URL if present
+      if (data.next) {
+        const urlParams = new URLSearchParams(data.next.split('?')[1]);
+        setNextCursor(urlParams.get('cursor'));
+      } else {
+        setNextCursor(null);
+      }
     } catch (error) {
       console.warn('Error fetching posts:', error?.message);
       if (showAlert) {
@@ -36,16 +88,24 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchPosts();
+    fetchPosts(true);
   }, []);
+
+  const handleLoadMore = () => {
+    if (nextCursor && !loadingMore && !loading && !refreshing) {
+      fetchPosts(false);
+    }
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchPosts(true);
+    setNextCursor(null);
+    fetchPosts(true, false);
   }, []);
 
   const handleCreatePost = async () => {
@@ -62,6 +122,65 @@ export default function HomeScreen() {
       Alert.alert('Erro', 'Não foi possível publicar sua dica.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLikePost = async (postId) => {
+    // Optimistic update
+    setPosts(prevPosts => prevPosts.map(p => {
+      if (p.id === postId) {
+        const liked = !p.liked_by_user;
+        return {
+          ...p,
+          liked_by_user: liked,
+          likes_count: p.likes_count + (liked ? 1 : -1)
+        };
+      }
+      return p;
+    }));
+
+    try {
+      await postsAPI.toggleLike(postId);
+    } catch (error) {
+      console.warn('Error liking post:', error);
+      onRefresh(); // Revert
+    }
+  };
+
+  const handleBookmarkPost = async (postId) => {
+    // Optimistic update
+    setPosts(prevPosts => prevPosts.map(p => {
+      if (p.id === postId) {
+        return {
+          ...p,
+          bookmarked_by_user: !p.bookmarked_by_user
+        };
+      }
+      return p;
+    }));
+
+    try {
+      await postsAPI.toggleBookmark(postId);
+    } catch (error) {
+      console.warn('Error bookmarking post:', error);
+      onRefresh(); // Revert
+    }
+  };
+
+  const handleOpenComments = (post) => {
+    setSelectedPostForComments(post);
+    setCommentsModalVisible(true);
+  };
+
+  const handleSharePost = async (post) => {
+    try {
+      const shareMessage = `Dica de ${post.author_name} no FaculFlow:\n\n"${post.content}"\n\nBaixe o FaculFlow para ver mais!`;
+      const { Share } = require('react-native');
+      await Share.share({
+        message: shareMessage,
+      });
+    } catch (error) {
+      console.warn('Error sharing post:', error);
     }
   };
 
@@ -90,8 +209,8 @@ export default function HomeScreen() {
       <View style={styles.quickRow}>
         {[
           { icon: 'create-outline', label: 'Nova Dica', bg: COLORS.primaryLight, fg: COLORS.primary, onPress: () => setModalVisible(true) },
-          { icon: 'people-outline', label: 'Mentores', bg: COLORS.accentLight, fg: COLORS.accent, onPress: () => {} },
-          { icon: 'chatbubbles-outline', label: 'Grupos', bg: '#EDE9FE', fg: '#7C3AED', onPress: () => {} },
+          { icon: 'people-outline', label: 'Mentores', bg: COLORS.accentLight, fg: COLORS.accent, onPress: () => navigation.navigate('Conectar') },
+          { icon: 'chatbubbles-outline', label: 'Grupos', bg: '#EDE9FE', fg: '#7C3AED', onPress: () => navigation.navigate('Comunidade') },
           { icon: 'calendar-outline', label: 'Eventos', bg: '#DBEAFE', fg: '#2563EB', onPress: () => {} },
         ].map((q, i) => (
           <TouchableOpacity key={i} style={styles.quickItem} onPress={q.onPress}>
@@ -107,31 +226,39 @@ export default function HomeScreen() {
         <Text style={styles.feedTitle}>📌 Últimas dicas</Text>
         <TouchableOpacity><Text style={styles.seeAll}>Ver tudo</Text></TouchableOpacity>
       </View>
+      {loading && renderSkeletons()}
     </View>
   );
 
   return (
     <View style={styles.root}>
-      {loading && !refreshing ? (
-        <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <PostCard post={item} />}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
-          ListEmptyComponent={
+      <FlatList
+        data={loading ? [] : posts}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <PostCard 
+            post={item} 
+            onLikePress={() => handleLikePost(item.id)}
+            onBookmarkPress={() => handleBookmarkPost(item.id)}
+            onCommentPress={() => handleOpenComments(item)}
+            onSharePress={() => handleSharePost(item)}
+          />
+        )}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: SIZES.md }} /> : null}
+        ListEmptyComponent={
+          !loading && (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Nenhuma dica encontrada. Seja o primeiro a postar!</Text>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
       
       <TouchableOpacity style={[styles.fab, { bottom: SIZES.lg }]} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={28} color="#fff" />
@@ -170,6 +297,17 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Comments Drawer Modal */}
+      <CommentsModal
+        visible={isCommentsModalVisible}
+        post={selectedPostForComments}
+        onClose={() => {
+          setCommentsModalVisible(false);
+          setSelectedPostForComments(null);
+        }}
+        onCommentAdded={onRefresh}
+      />
     </View>
   );
 }
@@ -205,4 +343,7 @@ const styles = StyleSheet.create({
   postInput: { flex: 1, padding: SIZES.lg, fontSize: SIZES.bodyLg, color: COLORS.textPrimary, textAlignVertical: 'top' },
   modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SIZES.lg, borderTopWidth: 1, borderTopColor: COLORS.border },
   charCount: { color: COLORS.textLight, fontSize: SIZES.caption },
+  skeletonList: { marginTop: SIZES.sm },
+  skeletonCard: { backgroundColor: COLORS.surface, padding: SIZES.lg, borderRadius: SIZES.radiusLg, marginBottom: SIZES.md, ...SHADOWS.small },
+  skeletonHeader: { flexDirection: 'row', alignItems: 'center' },
 });

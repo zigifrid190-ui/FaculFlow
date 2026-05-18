@@ -28,6 +28,8 @@ export const FONTS = {
   medium: 'Inter_500Medium',
   semiBold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
+  poppins: 'Poppins_400Regular',
+  poppinsSemiBold: 'Poppins_600SemiBold',
   // Fallbacks for before fonts load
   systemRegular: 'System',
   systemBold: 'System',

@@ -4,8 +4,14 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ==================== SEGURANÇA ====================
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-faculfow-prototipo-2026')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if os.environ.get('DEBUG', 'True').lower() == 'true':
+        SECRET_KEY = 'django-insecure-faculfow-prototipo-2026'
+    else:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("A variável de ambiente SECRET_KEY precisa ser configurada em produção!")
+
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
@@ -21,6 +27,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
+    'cloudinary_storage',
+    'cloudinary',
     
     # Nosso app
     'core',
@@ -76,10 +84,19 @@ else:
     }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
 ]
 
 LANGUAGE_CODE = 'pt-br'
@@ -102,10 +119,29 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '100/minute',
+        'burst': '5/second',
+    },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 # ==================== CORS ====================
-CORS_ALLOW_ALL_ORIGINS = True   # Para o app mobile conectar de qualquer IP
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True   # Para o app mobile conectar de qualquer IP em desenvolvimento
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+        if origin.strip()
+    ]
 
 # ==================== SIMPLE JWT ====================
 from datetime import timedelta
@@ -125,3 +161,13 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# ==================== MÍDIA E UPLOAD (CLOUDINARY) ====================
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+if os.environ.get('CLOUDINARY_URL'):
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+else:
+    # Se não houver configuração do Cloudinary, salvar local (apenas dev)
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'

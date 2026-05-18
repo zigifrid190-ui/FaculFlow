@@ -23,16 +23,12 @@ function timeAgo(dateString) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
-export default function PostCard({ post, onPress }) {
+export default function PostCard({ post, onLikePress, onCommentPress, onBookmarkPress, onSharePress }) {
   const roleColor = post.is_calouro ? COLORS.accent : COLORS.primary;
   const roleLabel = post.is_calouro ? 'Calouro' : 'Veterano';
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
+    <View style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.avatar, { backgroundColor: roleColor }]}>
           <Text style={styles.avatarText}>
@@ -63,23 +59,33 @@ export default function PostCard({ post, onPress }) {
       <Text style={styles.content}>{post.content}</Text>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerAction}>
-          <Ionicons name="heart-outline" size={18} color={COLORS.textSecondary} />
-          <Text style={styles.footerText}>{post.likes || 0}</Text>
+        <TouchableOpacity style={styles.footerAction} onPress={onLikePress}>
+          <Ionicons 
+            name={post.liked_by_user ? "heart" : "heart-outline"} 
+            size={18} 
+            color={post.liked_by_user ? '#EF4444' : COLORS.textSecondary} 
+          />
+          <Text style={[styles.footerText, post.liked_by_user && { color: '#EF4444', fontWeight: '700' }]}>
+            {post.likes_count || 0}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerAction}>
+        <TouchableOpacity style={styles.footerAction} onPress={onCommentPress}>
           <Ionicons name="chatbubble-outline" size={16} color={COLORS.textSecondary} />
-          <Text style={styles.footerText}>{post.comments || 0}</Text>
+          <Text style={styles.footerText}>{post.comments_count || 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerAction}>
+        <TouchableOpacity style={styles.footerAction} onPress={onSharePress}>
           <Ionicons name="share-social-outline" size={17} color={COLORS.textSecondary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        <TouchableOpacity style={styles.footerAction}>
-          <Ionicons name="bookmark-outline" size={17} color={COLORS.textSecondary} />
+        <TouchableOpacity style={styles.footerAction} onPress={onBookmarkPress}>
+          <Ionicons 
+            name={post.bookmarked_by_user ? "bookmark" : "bookmark-outline"} 
+            size={17} 
+            color={post.bookmarked_by_user ? COLORS.primary : COLORS.textSecondary} 
+          />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 

@@ -29,12 +29,13 @@
     },
     "extra": {
       "eas": {
-        "projectId": "f08ab4ed-aef1-4686-9501-fa73fc6c0522"
+        "projectId": "1bfd2cca-fb3e-482c-9f2c-490d62b006e9"
       }
     },
     "plugins": [
       "expo-font",
       "expo-secure-store"
-    ]
+    ],
+    "owner": "zigifrid"
   }
 }

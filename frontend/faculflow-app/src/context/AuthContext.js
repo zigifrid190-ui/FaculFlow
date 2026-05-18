@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { authAPI } from '../services/api';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { Platform, LogBox } from 'react-native';
+import { authAPI, usersAPI } from '../services/api';
+
+LogBox.ignoreLogs([
+  'expo-notifications: Android Push notifications',
+  '`expo-notifications` functionality is not fully supported in Expo Go'
+]);
 
 const AuthContext = createContext(null);
 
@@ -14,12 +23,68 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
+  const registerForPushNotificationsAsync = async () => {
+    let token;
+    
+    // Evita chamadas de permissão e registros no Expo Go (não suportado desde SDK 53)
+    const isExpoGo = 
+      Constants.appOwnership === 'expo' || 
+      Constants.executionEnvironment === 'store-client';
+      
+    if (isExpoGo) {
+      console.log('Skipping push notification registration in Expo Go.');
+      return null;
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        return null;
+      }
+      try {
+        token = (await Notifications.getExpoPushTokenAsync({
+          projectId: 'faculflow-id' // Ideally from app.json
+        })).data;
+      } catch (error) {
+        console.warn('Erro ao pegar push token:', error);
+      }
+    }
+
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#00897B',
+      });
+    }
+
+    return token;
+  };
+
+  const syncPushToken = async () => {
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        await usersAPI.updateProfile({ push_token: token });
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar push token', e);
+    }
+  };
+
   const checkAuth = async () => {
     try {
       const token = await SecureStore.getItemAsync('accessToken');
       const userData = await SecureStore.getItemAsync('userData');
       if (token && userData) {
         setUser(JSON.parse(userData));
+        syncPushToken(); // Sync token if user is already logged in
       }
     } catch (err) {
       console.warn('Auth check failed:', err);
@@ -36,6 +101,7 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('refreshToken', data.tokens.refresh);
       await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
       setUser(data.user);
+      syncPushToken(); // Sync token after login
       return { success: true };
     } catch (err) {
       const message =
@@ -55,6 +121,7 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('refreshToken', data.tokens.refresh);
       await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
       setUser(data.user);
+      syncPushToken(); // Sync token after register
       return { success: true };
     } catch (err) {
       const errors = err.response?.data;
