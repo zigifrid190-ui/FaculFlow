@@ -8,7 +8,7 @@ const DEV_IP = '192.168.1.103';
 const PRODUCTION_URL = 'https://faculflow-production.up.railway.app';
 
 export const API_CONFIG = {
-  BASE_URL: __DEV__ ? `http://${DEV_IP}:8000` : PRODUCTION_URL,
+  BASE_URL: PRODUCTION_URL, // Forçado para apresentação
   ENDPOINTS: {
     LOGIN: '/api/auth/login/',
     REGISTER: '/api/auth/register/',
