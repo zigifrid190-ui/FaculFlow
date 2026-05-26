@@ -61,11 +61,11 @@ export default function PostCard({ post, onLikePress, onCommentPress, onBookmark
       <View style={styles.footer}>
         <TouchableOpacity style={styles.footerAction} onPress={onLikePress}>
           <Ionicons 
-            name={post.liked_by_user ? "heart" : "heart-outline"} 
+            name={post.is_liked ? "heart" : "heart-outline"} 
             size={18} 
-            color={post.liked_by_user ? '#EF4444' : COLORS.textSecondary} 
+            color={post.is_liked ? '#EF4444' : COLORS.textSecondary} 
           />
-          <Text style={[styles.footerText, post.liked_by_user && { color: '#EF4444', fontWeight: '700' }]}>
+          <Text style={[styles.footerText, post.is_liked && { color: '#EF4444', fontWeight: '700' }]}>
             {post.likes_count || 0}
           </Text>
         </TouchableOpacity>
@@ -79,9 +79,9 @@ export default function PostCard({ post, onLikePress, onCommentPress, onBookmark
         <View style={{ flex: 1 }} />
         <TouchableOpacity style={styles.footerAction} onPress={onBookmarkPress}>
           <Ionicons 
-            name={post.bookmarked_by_user ? "bookmark" : "bookmark-outline"} 
+            name={post.is_bookmarked ? "bookmark" : "bookmark-outline"} 
             size={17} 
-            color={post.bookmarked_by_user ? COLORS.primary : COLORS.textSecondary} 
+            color={post.is_bookmarked ? COLORS.primary : COLORS.textSecondary} 
           />
         </TouchableOpacity>
       </View>

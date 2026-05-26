@@ -65,10 +65,30 @@ export default function CommunityScreen({ navigation }) {
   }, [activeFilter]);
 
   const handleCreateCommunity = async (data) => {
-    const response = await communitiesAPI.create(data);
-    // Refresh list
-    fetchCommunities();
-    return response;
+    try {
+      const response = await communitiesAPI.create(data);
+      // Refresh list
+      fetchCommunities();
+      return response;
+    } catch (error) {
+      // Extract the backend validation message and re-throw for the modal
+      const errData = error.response?.data;
+      let message = 'Não foi possível criar o quadro. Tente novamente.';
+      if (errData) {
+        if (typeof errData === 'string') {
+          message = errData;
+        } else if (Array.isArray(errData.non_field_errors)) {
+          message = errData.non_field_errors.join('\n');
+        } else if (errData.name) {
+          message = Array.isArray(errData.name) ? errData.name.join('\n') : errData.name;
+        } else if (typeof errData === 'object') {
+          // Flatten all field errors
+          const msgs = Object.values(errData).flat();
+          if (msgs.length) message = msgs.join('\n');
+        }
+      }
+      throw new Error(message);
+    }
   };
 
   const handleCardPress = (community) => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Pressable,
+  KeyboardAvoidingView, Platform, ScrollView, Pressable, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS } from '../../constants/theme';
@@ -37,7 +37,8 @@ export default function CreateCommunityModal({ visible, onClose, onCreate }) {
       setSelectedCategory('tema');
       onClose();
     } catch (error) {
-      console.error('Error creating community:', error);
+      const msg = error?.message || 'Não foi possível criar o quadro.';
+      Alert.alert('Erro ao criar quadro', msg);
     } finally {
       setLoading(false);
     }

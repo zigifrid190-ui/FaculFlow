@@ -185,9 +185,9 @@ class CommunityCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         user = self.context['request'].user
-        if user.created_communities.count() >= 3:
+        if user.created_communities.count() >= 10:
             raise serializers.ValidationError(
-                'Você atingiu o limite de 3 quadros criados. Delete um existente para criar outro.'
+                'Você atingiu o limite de 10 quadros criados. Delete um existente para criar outro.'
             )
         return data
 

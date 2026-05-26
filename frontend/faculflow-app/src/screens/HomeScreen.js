@@ -129,10 +129,10 @@ export default function HomeScreen({ navigation }) {
     // Optimistic update
     setPosts(prevPosts => prevPosts.map(p => {
       if (p.id === postId) {
-        const liked = !p.liked_by_user;
+        const liked = !p.is_liked;
         return {
           ...p,
-          liked_by_user: liked,
+          is_liked: liked,
           likes_count: p.likes_count + (liked ? 1 : -1)
         };
       }
@@ -153,7 +153,7 @@ export default function HomeScreen({ navigation }) {
       if (p.id === postId) {
         return {
           ...p,
-          bookmarked_by_user: !p.bookmarked_by_user
+          is_bookmarked: !p.is_bookmarked
         };
       }
       return p;
